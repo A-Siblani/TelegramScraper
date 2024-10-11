@@ -3,7 +3,12 @@
 .env
 
 #ignoring the variable sessions
-*.session
+anon.*
 
 #ignoring virtual environment
 Tel_Scr/
+
+#ignoring output and results folders for confedintionality
+channel_messages/
+
+media/
