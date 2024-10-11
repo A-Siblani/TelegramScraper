@@ -1,0 +1,9 @@
+#ignoring the .env file
+
+.env
+
+#ignoring the variable sessions
+*.session
+
+#ignoring virtual environment
+Tel_Scr/
