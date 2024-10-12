@@ -26,45 +26,67 @@ async def join_channel(client, channel_name):
     except Exception as e:
         print(f"Error joining channel {channel_name}: {e}")
 
+def sanitize_channel_name(channel_name):
+    """
+    Sanitizes the channel name by removing special characters and spaces.
+    """
+    return re.sub(r'[^\w]', '_', channel_name)
+
+def clean_message(text):
+    """
+    Cleans the message by removing unwanted elements like emojis, links, and certain phrases.
+    """
+    # Remove emojis using regex pattern for emoji ranges
+    emoji_pattern = re.compile("[" u"\U0001F600-\U0001F64F"  # emoticons
+                               u"\U0001F300-\U0001F5FF"  # symbols & pictographs
+                               u"\U0001F680-\U0001F6FF"  # transport & map symbols
+                               u"\U0001F1E0-\U0001F1FF"  # flags (iOS)
+                               u"\U00002702-\U000027B0"  # Dingbats
+                               u"\U000024C2-\U0001F251"  # Enclosed characters
+                               "]+", flags=re.UNICODE)
+    text = emoji_pattern.sub(r'', text)
+
+    # Remove URLs and phrases related to links
+    url_pattern = re.compile(r'https?://\S+|www\.\S+')
+    text = url_pattern.sub(r'', text)
+
+    # Remove unwanted phrases
+    unwanted_phrases = [
+        "للاشتراك في اخبارنا السريعة",
+        "عبر تلغرام",
+        "انقر هنا",
+        " على قناة {يَسْتَبشِرُونَ} :",
+    ]
+    for phrase in unwanted_phrases:
+        text = text.replace(phrase, '')
+
+    # Clean up extra whitespace
+    text = text.strip()
+
+    return text
+
 async def scrape_message(client, channel_name, limit=100):
     """
-    Scrapes messages, photos, and videos from a Telegram channel and returns them in a list.
-    Downloads media (photos and videos) and saves them in a channel-specific subdirectory.
+    Scrapes text messages from a Telegram channel and returns them in a list.
     """
     messages = []
-    
-    # Create a folder for the current channel under the media directory
-    media_folder = os.path.join('media', sanitize_channel_name(channel_name))
-    if not os.path.exists(media_folder):
-        os.makedirs(media_folder)
 
     try:
         async for message in client.iter_messages(channel_name, limit=limit):
             if message.text:
-                messages.append(f"Message: {message.text}")
-            
-            # Download media if available (photos, videos)
-            if message.media:
-                file_path = await client.download_media(message.media, media_folder)
-                if file_path:
-                    messages.append(f"Downloaded media: {file_path}")
-            
+                # Clean the message before appending
+                clean_text = clean_message(message.text)
+                if clean_text:  # Only append if there's meaningful content after cleaning
+                    # Append the cleaned message with a separator
+                    messages.append(f"Message: {clean_text}\n------------------------------------------------------------------------------------------")
         return messages
     except Exception as e:
         print(f"Error scraping messages from {channel_name}: {e}")
         return []
 
-def sanitize_channel_name(channel_name):
-    """
-    Sanitizes the channel name by removing special characters and spaces.
-    """
-    # Replace any character that is not alphanumeric or underscore with an underscore
-    return re.sub(r'[^\w]', '_', channel_name)
-
 async def main():
     """
-    Joins each channel listed in the CHANNELS environment variable and scrapes messages.
-    Downloads media (photos, videos) and saves them to a local folder.
+    Joins each channel listed in the CHANNELS environment variable and scrapes text messages.
     Saves the messages for each channel in a separate file named after the channel in the channel_messages directory.
     """
     
@@ -81,13 +103,13 @@ async def main():
         
         await join_channel(client, channel_name)
         
-        # Scrape messages and media from the channel
+        # Scrape messages from the channel (only text)
         messages = await scrape_message(client, channel_name, limit=10)  # Adjust the limit as needed
         
         # Save the messages to a file named after the channel in the channel_messages directory
         output_file = os.path.join(channel_messages_dir, f'{sanitize_channel_name(channel_name)}_messages.txt')
         with open(output_file, 'w', encoding='utf-8') as f:
-            f.writelines("\n".join(messages) + "\n" + "-"*40 + "\n")
+            f.writelines("\n".join(messages) + "\n")
         
         print(f"Scraped messages from {channel_name} saved to {output_file}")
 

@@ -12,3 +12,6 @@ Tel_Scr/
 channel_messages/
 
 media/
+
+#ignoring the other scraper for now for previlages reasons
+bot_scraper.py
